@@ -1,6 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ShoppingApp.Data;
+using ShoppingApp.Interface;
+using ShoppingApp.Repository;
+using ShoppingApp.RepositoryInterface;
 using ShoppingApp.Services;
 using System.Text;
 
@@ -92,7 +95,11 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-var app = builder.Build();
+// 1️⃣ Register services in DI container
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IProductService, ProductService>();
+
+WebApplication app = builder.Build();
 
 // ---------------------------
 // 6. Middleware pipeline

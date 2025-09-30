@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using ShoppingApp.Interface;
 using ShoppingApp.Model;
 using ShoppingApp.Model_Request;
 using ShoppingApp.Model_Response;
@@ -11,23 +12,23 @@ namespace ShoppingApp.Controllers
 {
    
     [ApiController]
+    [Route("api/[controller]")]
     public class ProductController : ControllerBase
     {
-        private readonly ProductService _db;
-        public ProductController(Data.ShoppingDbContext _dbContext)
+        private readonly IProductService _productService;
+        public ProductController(IProductService productService)
         {
-           _db = new ProductService(_dbContext);
+            _productService = productService;
         }
 
         // GET: api/<ShoppingController>
-        [HttpGet]
-        [Route("api/[controller]/GetProducts")]
-        public IActionResult GetProducts()
+        [HttpGet("GetProducts")]
+        public async Task<IActionResult> GetProducts()
         {
             ResponseType type = ResponseType.Success;
             try
             {
-                IEnumerable<ProductModel> data = _db.GetProducts();
+                IEnumerable<ProductModel> data = await _productService.GetProductsAsync();
                 if (data == null || !data.Any())
                 {
                     return NotFound(ResponseHandller.GetAppResponse(ResponseType.NotFound, null));
@@ -42,14 +43,13 @@ namespace ShoppingApp.Controllers
         }
 
         // GET api/<ShoppingController>/5
-        [HttpGet]
-        [Route("api/[controller]/GetProductById/{id}")]
-        public IActionResult Get(int id)
+        [HttpGet("GetProductById /{id}")]
+        public async Task<IActionResult> GetProductById(int id)
         {
             ResponseType type = ResponseType.Success;
             try
             {
-                ProductModel data = _db.GetProductsById(id);
+                ProductModel? data = await _productService.GetProductsByIdAsync(id);
                 if (data == null)
                 {
                     type = ResponseType.NotFound;
@@ -63,14 +63,12 @@ namespace ShoppingApp.Controllers
         }
 
 
-
-        [HttpPost]
-        [Route("api/[controller]/SaveUpdateProduct")]
-        public IActionResult SaveUpdateProduct([FromBody] ProductModel model)
+        [HttpPost("SaveUpdateProduct")]
+        public async Task<IActionResult> SaveUpdateProduct(ProductModel product)
         {
             try
             {
-                _db.SaveUpdateProduct(model); // return the saved/updated entity
+                await _productService.SaveUpdateProductAsync(product); // return the saved/updated entity
                 return Ok(new { code = 200, message = "Saved/Updated product successfully" });
             }
             catch (Exception ex)
@@ -79,15 +77,14 @@ namespace ShoppingApp.Controllers
             }
         }
 
-        // DELETE api/<ShoppingController>/5
-        [HttpDelete]
-        [Route("api/[controller]/DeleteProduct")]
-        public IActionResult DeleteProduct([FromBody] DeleteProductRequest request)       
+
+        [HttpDelete("DeleteProduct")]
+        public async Task<IActionResult> DeleteProduct([FromBody] DeleteProductRequest request)
         {
             try
             {
                 ResponseType type = ResponseType.Success;
-                _db.DeleteProduct(request.Id);
+                await _productService.DeleteProductAsync(request.Id);
                 return Ok(new { code = 200, message = "Deleted product successfully" });
             }
             catch (Exception ex)
@@ -95,5 +92,6 @@ namespace ShoppingApp.Controllers
                 return BadRequest(ResponseHandller.GetExceptionResponse(ex));
             }
         }
+
     }
 }

@@ -1,84 +1,88 @@
-﻿using ShoppingApp.Data;
-using ShoppingApp.EfCore;
+﻿using ShoppingApp.Interface;
 using ShoppingApp.Model;
-using System.Xml.Linq;
+using ShoppingApp.RepositoryInterface;
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
 
 namespace ShoppingApp.Services
 {
-    public class ProductService
+    public class ProductService : IProductService
     {
-        private ShoppingDbContext _context;
-        public ProductService(ShoppingDbContext context)
+        private readonly IProductRepository _productRepo;
+
+        public ProductService(IProductRepository productRepo)
         {
-            _context = context;
-        }
-        public List<ProductModel> GetProducts()
-        {
-            List<ProductModel> response = new List<ProductModel>();
-            var dataList = _context.Products.ToList();
-            dataList.ForEach(row => response.Add(new ProductModel()
-            {
-                Brand = row.Brand,
-                Name = row.Name,
-                Id=row.Id,
-                Price = row.Price,
-                size=row.size,
-            }));
-            return response;
+            _productRepo = productRepo;
         }
 
-        public ProductModel GetProductsById(int id)
+        public async Task<List<ProductModel>> GetProductsAsync()
         {
-            ProductModel response = new ProductModel();
-            var dataList = _context.Products.Where(d => d.Id.Equals(id)).FirstOrDefault();
-            return new ProductModel()
+            var products = await _productRepo.Products.ToListAsync();
+            return products.Select(p => new ProductModel
             {
-                Brand = dataList.Brand,
-                Name = dataList.Name,
-                Id = dataList.Id,
-                Price = dataList.Price,
-                size = dataList.size
-            };            
+                Id = p.Id,
+                Name = p.Name,
+                Brand = p.Brand,
+                Price = p.Price,
+                size = p.size
+            }).ToList();
         }
 
-        public void SaveUpdateProduct(ProductModel productModel)
+        public async Task<ProductModel?> GetProductsByIdAsync(int id)
         {
-            if (productModel.Id > 0) // UPDATE
+            var product = await _productRepo.Products.FirstOrDefaultAsync(p => p.Id == id);
+            if (product == null) return null;
+
+            return new ProductModel
             {
-                var dbTable = _context.Products.FirstOrDefault(d => d.Id == productModel.Id);
-                if (dbTable != null)
+                Id = product.Id,
+                Name = product.Name,
+                Brand = product.Brand,
+                Price = product.Price,
+                size = product.size
+            };
+        }
+
+        public async Task SaveUpdateProductAsync(ProductModel productModel)
+        {
+            if (productModel.Id > 0)
+            {
+                var dbProduct = await _productRepo.Products.FirstOrDefaultAsync(p => p.Id == productModel.Id);
+                if (dbProduct != null)
                 {
-                    dbTable.Brand = productModel.Brand;
-                    dbTable.Name = productModel.Name;
-                    dbTable.size = productModel.size;
-                    dbTable.Price = productModel.Price;
-                    _context.Products.Update(dbTable);
+                    dbProduct.Name = productModel.Name;
+                    dbProduct.Brand = productModel.Brand;
+                    dbProduct.Price = productModel.Price;
+                    dbProduct.size = productModel.size;
+                    _productRepo.Products.Update(dbProduct);
                 }
             }
-            else // INSERT
+            else
             {
-                var dbTable = new Product();
+                var dbProduct = new EfCore.Product
                 {
-                    dbTable.Brand = productModel.Brand;
-                    dbTable.Name = productModel.Name;
-                    dbTable.size = productModel.size;
-                    dbTable.Price = productModel.Price;
+                    Name = productModel.Name,
+                    Brand = productModel.Brand,
+                    Price = productModel.Price,
+                    size = productModel.size
                 };
-                dbTable.Id = 0; // optional, EF will auto-generate anyway
-                _context.Products.Add(dbTable);
+                _productRepo.Products.Add(dbProduct);
             }
-            _context.SaveChanges();
+
+            await _productRepo.SaveChangesAsync();
         }
 
-        public void DeleteProduct(int Id)
+        public async Task DeleteProductAsync(int id)
         {
-            var product = _context.Products.FirstOrDefault(d => d.Id == Id);
-            if (product != null)
+            var dbProduct = await _productRepo.Products.FirstOrDefaultAsync(p => p.Id == id);
+            if (dbProduct != null)
             {
-                _context.Products.Remove(product);
-                _context.SaveChanges();
+                _productRepo.Products.Remove(dbProduct);
+                await _productRepo.SaveChangesAsync();
             }
-
         }
     }
 }
