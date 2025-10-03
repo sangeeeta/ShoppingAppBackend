@@ -1,7 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 using ShoppingApp.Data;
 using ShoppingApp.Interface;
+using ShoppingApp.Middlewares.Loggers;
 using ShoppingApp.Repository;
 using ShoppingApp.RepositoryInterface;
 using ShoppingApp.Services;
@@ -24,18 +26,29 @@ builder.Services.AddCors(options =>
 });
 
 // ---------------------------
-// 2. Add Controllers
+// 2. Add logging
+// ---------------------------
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.File("Logs/requests.log", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
+// ---------------------------
+// 3. Add Controllers
 // ---------------------------
 builder.Services.AddControllers(option => option.ReturnHttpNotAcceptable = true);
 
 // ---------------------------
-// 3. Add DbContext (PostgreSQL)
+// 4. Add DbContext (PostgreSQL)
 // ---------------------------
 builder.Services.AddDbContext<ShoppingDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ---------------------------
-// 4. Add JWT Authentication
+// 5. Add JWT Authentication
 // ---------------------------
 
 //  Add JwtService (your custom service)
@@ -65,7 +78,7 @@ builder.Services.AddAuthentication("Bearer")
     });
 
 // ---------------------------
-// 5. Swagger + JWT Setup
+// 6. Swagger + JWT Setup
 // ---------------------------
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -102,7 +115,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 WebApplication app = builder.Build();
 
 // ---------------------------
-// 6. Middleware pipeline
+// 7. Middleware pipeline
 // ---------------------------
 if (app.Environment.IsDevelopment())
 {
@@ -112,10 +125,14 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAngularApp");
+
+app.UseMiddleware<ErrorHandlingMiddleware>();   
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseHttpsRedirection();
 // Authentication must come before Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
 
 app.Run();

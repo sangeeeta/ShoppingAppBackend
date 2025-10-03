@@ -15,9 +15,11 @@ namespace ShoppingApp.Controllers
     [Route("api/[controller]")]
     public class ProductController : ControllerBase
     {
+        private readonly ILogger<ProductController> _logger;
         private readonly IProductService _productService;
-        public ProductController(IProductService productService)
+        public ProductController(ILogger<ProductController> logger, IProductService productService)
         {
+            _logger = logger;
             _productService = productService;
         }
 
